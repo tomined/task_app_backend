@@ -88,8 +88,16 @@ def login():
 def dashboard():
     if 'email' in session:
         user = users_collection.find_one({'email':session['email']})
-
-        return get_response('Zalogowano jako ' + user['username'],True,200,{'email':user['email'], 'username':user['username']})
+        tasks = tasks_collection.find({'email_author':session['email']}, {'_id':0})
+        return get_response(
+            'Zalogowano jako ' + user['username'],
+            True,
+            200,
+            {
+                'email':user['email'],
+                 'username':user['username'],
+                 'tasks':list(tasks)
+                 })
     else:
         return get_response("Odmowa dostepu",False,403)
     
@@ -127,10 +135,6 @@ def create_task():
         if tasks_collection.find_one({'task' : task}):
             return get_response('Zadanie o podanej nazwie już istnieje',False,500)
         
-        # # Sprawdzenie maila za pomocą regular expressions
-        # if re.match(email_pattern, email) is None:
-        #     return get_response('Niepoprawny email',False,500)
-
         tasks_collection.insert_one({
             'task': task,
             'description': description,
@@ -153,22 +157,24 @@ def create_task():
         }
 
         return get_response('Utworzono zadanie',True,201,new_task)
-    
+    return get_response('Odmwa dostepu',False,401)
+#---------------------------------------------------------------------------------    
 # Wyświetlenie wszystkich zadań
 @app.route('/get-tasks')
 def get_tasks():
     tasks = tasks_collection.find({},{'_id':0})
     return jsonify(list(tasks))
-   
+
+#---------------------------------------------------------------------------------   
 # Usuwanie zadania
-@app.route('/delete-task')
+@app.route('/delete-task', methods=['POST'])
 def delete_task():
-    if request.method == 'GET':
+    if request.method == 'POST':
          task = request.json['task']
 
     if tasks_collection.find_one({'task':task}):
         if tasks_collection.delete_one({'task':task}):
             return get_response('Usunieto zadanie',True,200,task)
     else:
-        return get_response('Zadanie o podanym tasku nie istnieje',False,501,task)
+        return get_response('Zadanie o podanym tasku nie istnieje',False,500,task)
     
